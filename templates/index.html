@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDA Analyzer | Matplotlib + Seaborn</title>
+  <meta name="description" content="Upload CSV files and generate beautiful Matplotlib & Seaborn plots in your browser." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080c18;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.08);
+      --primary: #818cf8;
+      --primary-dark: #6366f1;
+      --green: #34d399;
+      --cyan: #38bdf8;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --sub: #94a3b8;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background blobs */
+    .blob { position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none; z-index: 0; }
+    .blob-1 { width: 600px; height: 600px; background: #6366f1; top: -200px; left: -200px; }
+    .blob-2 { width: 500px; height: 500px; background: #0891b2; bottom: -150px; right: -150px; }
+    .blob-3 { width: 400px; height: 400px; background: #059669; top: 40%; left: 40%; }
+
+    /* Header */
+    header {
+      position: relative; z-index: 10;
+      padding: 28px 40px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8,12,24,0.8);
+      backdrop-filter: blur(20px);
+      display: flex; align-items: center; gap: 16px;
+    }
+    .logo-icon { font-size: 32px; }
+    .logo-title { font-size: 22px; font-weight: 800; }
+    .logo-title span { color: var(--primary); }
+    .logo-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .badge {
+      margin-left: auto;
+      background: rgba(129,140,248,0.15);
+      border: 1px solid rgba(129,140,248,0.3);
+      color: var(--primary);
+      font-size: 11px; font-weight: 600;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    /* Layout */
+    .layout {
+      max-width: 1550px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 30px;
+      padding: 30px; /* Space around the main sections */
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 20px;
+      background: rgba(8,12,24,0.6);
+      backdrop-filter: blur(10px);
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: var(--surface);
+    }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--primary); background: rgba(129,140,248,0.06); }
+    .upload-zone.drag { transform: scale(1.02); }
+    .upload-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+    .upload-title { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    .upload-sub { font-size: 12px; color: var(--muted); }
+    .file-info {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      background: rgba(52,211,153,0.08);
+      border: 1px solid rgba(52,211,153,0.2);
+      border-radius: 10px;
+    }
+    .file-info-icon { font-size: 28px; }
+    .file-name { font-weight: 600; font-size: 13px; color: var(--green); }
+    .file-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* Stat pills */
+    .stat-pills { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px; }
+    .pill {
+      padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .pill-blue { background: rgba(56,189,248,0.1); color: var(--cyan); border: 1px solid rgba(56,189,248,0.2); }
+    .pill-green { background: rgba(52,211,153,0.1); color: var(--green); border: 1px solid rgba(52,211,153,0.2); }
+    .pill-purple { background: rgba(129,140,248,0.1); color: var(--primary); border: 1px solid rgba(129,140,248,0.2); }
+
+    /* Form controls */
+    .form-group { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .form-group:last-child { border-bottom: none; }
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    select, .select {
+      width: 100%; padding: 9px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      appearance: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    select:hover, select:focus { border-color: var(--primary); outline: none; }
+    select option { background: #1e293b; }
+
+    /* Plot type grid */
+    .plot-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; padding: 14px 18px;
+    }
+    .plot-btn {
+      padding: 10px 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--sub);
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; text-align: center;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .plot-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(129,140,248,0.08); }
+    .plot-btn.active { border-color: var(--primary); background: rgba(129,140,248,0.15); color: var(--primary); }
+    .plot-btn .plot-emoji { display: block; font-size: 18px; margin-bottom: 4px; }
+
+    /* Generate button */
+    .gen-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      border: none; border-radius: 10px;
+      color: #fff; font-size: 14px; font-weight: 700;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: all 0.25s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .gen-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.4); }
+    .gen-btn:active { transform: translateY(0); }
+    .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Main content */
+    .main-content { overflow-y: auto; padding: 28px; display: flex; flex-direction: column; gap: 24px; }
+    .main-content::-webkit-scrollbar { width: 4px; }
+    .main-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Chart area */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .chart-header {
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .chart-title { font-size: 15px; font-weight: 700; }
+    .chart-body { 
+      padding: 0;
+      height: 580px; 
+      overflow: auto; 
+      background: #0d1117;
+      position: relative;
+    }
+    
+    /* Fit mode */
+    .chart-body.fit-mode {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chart-body.fit-mode #chart-img {
+      max-width: 96%;
+      max-height: 96%;
+      width: auto;
+      height: auto;
+      display: block;
+    }
+
+    /* Original mode */
+    .chart-body.original-mode {
+      display: block;
+      text-align: left;
+    }
+    .chart-body.original-mode #chart-img {
+      max-width: none;
+      height: auto;
+      margin: 0;
+      display: block;
+    }
+
+    #chart-img { 
+      border-radius: 4px; 
+      display: none; 
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 20px 50px rgba(0,0,0,0.5);
+    }
+    
+    .chart-controls {
+      display: flex; gap: 8px;
+    }
+    .view-btn {
+      padding: 4px 10px; font-size: 11px; font-weight: 700;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 4px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Empty state */
+    .empty-state { text-align: center; }
+    .empty-icon { font-size: 64px; margin-bottom: 16px; opacity: 0.4; }
+    .empty-title { font-size: 18px; font-weight: 600; color: var(--sub); margin-bottom: 8px; }
+    .empty-sub { font-size: 13px; color: var(--muted); }
+
+    /* Spinner & Loading */
+    .loader-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(8,12,24,0.7);
+      backdrop-filter: blur(4px);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; gap: 16px;
+    }
+    .spinner { 
+      width: 50px; height: 50px; 
+      border: 4px solid var(--border); border-top-color: var(--primary); 
+      border-radius: 50%; animation: spin 0.8s linear infinite, pulse 2s ease-in-out infinite; 
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+    .loading-text { font-size: 14px; font-weight: 600; color: var(--primary); letter-spacing: 1px; }
+
+    /* Preview table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th { padding: 10px 14px; background: rgba(255,255,255,0.04); color: var(--muted); font-weight: 600; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    tbody td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--sub); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    tbody tr:hover td { background: var(--surface-hover); }
+
+    /* Stats table */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 18px; }
+    .stat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .stat-col-name { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; }
+    .stat-key { color: var(--muted); }
+    .stat-val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* Error toast */
+    .error-box {
+      padding: 12px 16px;
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 8px;
+      color: var(--red);
+      font-size: 13px;
+      display: none;
+    }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; padding: 14px 18px 0; }
+    .tab {
+      padding: 8px 16px; font-size: 12px; font-weight: 600;
+      border-radius: 8px 8px 0 0; cursor: pointer;
+      color: var(--muted); border: 1px solid transparent;
+      border-bottom: none; background: transparent;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+    .tab.active { background: var(--surface-hover); border-color: var(--border); color: var(--text); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); height: auto; }
+    }
+
+    /* Prediction UI */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 6px;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--sub);
+      cursor: pointer;
+    }
+    .feature-item input { accent-color: var(--primary); }
+    .pred-results {
+      background: var(--surface-hover);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .res-val { color: var(--primary); font-weight: 700; font-size: 24px; }
+    .res-label { font-size: 12px; color: var(--muted); text-transform: uppercase; }
+    .eq-box {
+      background: #0d1117;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: #34d399;
+      margin-top: 15px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<header>
+  <div style="display: flex; align-items: center; gap: 15px;">
+    <span class="logo-icon">📊</span>
+    <div>
+      <div class="logo-title">EDA <span>Analyzer</span></div>
+      <div class="logo-sub">Matplotlib & Seaborn — powered by Python</div>
+    </div>
+  </div>
+  
+  <div style="display: flex; gap: 10px; margin-left: 40px;">
+    <button class="view-btn active" id="nav-plots" onclick="showSection('plots')">📈 Charts</button>
+    <button class="view-btn" id="nav-predict" onclick="showSection('predict')">🤖 Predictions</button>
+  </div>
+
+  <div class="badge">🐍 Python Backend</div>
+</header>
+
+<div class="layout" id="plots-section">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- Upload -->
+    <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()"
+      ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+      <input id="file-input" type="file" accept=".csv" style="display:none" onchange="uploadFile(this.files[0])" />
+      <span class="upload-icon" id="upload-icon">📁</span>
+      <div class="upload-title" id="upload-title">Drag & Drop your CSV</div>
+      <div class="upload-sub" id="upload-sub">or click to browse files</div>
+    </div>
+
+    <!-- File info (hidden initially) -->
+    <div id="file-info" class="file-info" style="display:none">
+      <span class="file-info-icon">✅</span>
+      <div>
+        <div class="file-name" id="f-name"></div>
+        <div class="file-meta" id="f-meta"></div>
+      </div>
+    </div>
+
+    <!-- Dataset info -->
+    <div id="ds-info" class="card" style="display:none">
+      <div class="card-header">⚡ Dataset Info</div>
+      <div class="stat-pills" id="pills-area"></div>
+    </div>
+
+    <!-- Plot Controls -->
+    <div id="controls" class="card" style="display:none">
+      <div class="card-header">⚙️ Plot Configuration</div>
+      
+      <div class="form-group">
+        <label>X Axis / Main Column</label>
+        <select id="x-col" onchange="generatePlot()"></select>
+      </div>
+      
+      <div id="y-group" class="form-group">
+        <label>Y Axis / Values</label>
+        <select id="y-col" onchange="generatePlot()"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Color By (Hue)</label>
+        <select id="hue-col" onchange="generatePlot()">
+          <option value="">— None —</option>
+        </select>
+      </div>
+
+      <div class="card-header" style="border-top: 1px solid var(--border)">🎨 Select Visualization</div>
+      <div class="plot-grid" id="plot-grid"></div>
+
+      <div class="form-group">
+        <div class="error-box" id="error-box"></div>
+        <button class="gen-btn" id="gen-btn" onclick="generatePlot()">
+          <span>🔬</span> Refresh Plot
+        </button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- Chart Card -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title" id="chart-title">Visualization</div>
+        <div class="chart-controls">
+          <button class="view-btn active" id="btn-fit" onclick="setViewMode('fit')">Fit Screen</button>
+          <button class="view-btn" id="btn-orig" onclick="setViewMode('orig')">Original Size</button>
+          <a id="download-btn" style="display:none; font-size:12px; color:var(--primary); text-decoration:none; font-weight:600; margin-left:10px; margin-top:3px;" download="eda_plot.png">⬇ PNG</a>
+        </div>
+      </div>
+      <div class="chart-body fit-mode" id="chart-body">
+        <!-- Loading Overlay -->
+        <div id="loader" class="loader-overlay">
+          <div class="spinner"></div>
+          <div class="loading-text">GENERATING PLOT...</div>
+        </div>
+
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📈</div>
+          <div class="empty-title">Ready for Analysis</div>
+          <div class="empty-sub">Adjust settings on the left or click a plot type</div>
+        </div>
+        <img id="chart-img" style="max-width:100%; border-radius:8px; display:none;" />
+      </div>
+    </div>
+
+    <!-- Preview & Stats -->
+    <div id="preview-card" class="chart-card" style="display:none">
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('preview')">📋 Data Preview</button>
+        <button class="tab" onclick="switchTab('stats')">📊 Statistics</button>
+      </div>
+      <div id="tab-preview" class="tab-panel active" style="padding:0">
+        <div class="table-wrap">
+          <table id="preview-table"><thead></thead><tbody></tbody></table>
+        </div>
+        <div style="padding:10px 16px; font-size:11px; color:var(--muted); border-top:1px solid var(--border);" id="preview-footer"></div>
+      </div>
+      <div id="tab-stats" class="tab-panel">
+        <div class="stats-grid" id="stats-grid"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- PREDICT SECTION -->
+<div class="layout" id="predict-section" style="display:none">
+  <aside class="sidebar">
+    <div class="card">
+      <div class="card-header">🎯 Target Variable (Y)</div>
+      <div class="form-group" style="padding:15px">
+        <label>Predict this column:</label>
+        <select id="pred-target"></select>
+      </div>
+      
+      <div class="card-header" style="border-top:1px solid var(--border)">🧬 Features (X)</div>
+      <div class="form-group" style="padding:15px">
+        <label>Use these columns for prediction:</label>
+        <div class="feature-grid" id="feature-grid">
+          <!-- Checkboxes will be here -->
+        </div>
+      </div>
+
+      <div class="form-group" style="padding:15px">
+        <div id="pred-error" class="error-box"></div>
+        <button class="gen-btn" onclick="runPrediction()">
+          <span>🤖</span> Run Regression
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Prediction Results (SLR / MLR)</div>
+      </div>
+      <div class="chart-body" id="predict-body" style="display:block; padding:40px">
+        <div class="empty-state" id="pred-empty">
+          <div class="empty-icon">🤖</div>
+          <div class="empty-title">Linear Regression Model</div>
+          <div class="empty-sub">Select your target and features on the left to train a model</div>
+        </div>
+        
+        <div id="pred-output" style="display:none">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:30px">
+            <div class="pred-results">
+              <div class="res-label">R-Squared Score</div>
+              <div class="res-val" id="res-r2">-</div>
+            </div>
+            <div class="pred-results">
+              <div class="res-label">Total Features</div>
+              <div class="res-val" id="res-count">-</div>
+            </div>
+          </div>
+          
+          <div class="res-label" style="margin-bottom:10px">Model Equation</div>
+          <div class="eq-box" id="res-eq"></div>
+          
+          <div class="res-label" style="margin-top:30px; margin-bottom:10px">Coefficients</div>
+          <div id="res-coefs" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:10px"></div>
+
+          <!-- Live Prediction Input -->
+          <div id="live-pred-section" style="margin-top:40px; border-top:1px solid var(--border); padding-top:30px">
+            <div class="res-label" style="margin-bottom:20px">✨ Live Prediction</div>
+            <div id="input-fields" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:15px; margin-bottom:20px">
+              <!-- Inputs will be generated here -->
+            </div>
+            <button class="gen-btn" style="width:auto; padding:12px 30px" onclick="calculateLivePrediction()">
+              🚀 Predict Outcome
+            </button>
+            <div id="live-result-box" style="display:none; margin-top:20px; padding:20px; background:rgba(52,211,153,0.1); border:1px solid #34d399; border-radius:10px">
+              <div class="res-label" style="color:#34d399">Predicted Result</div>
+              <div class="res-val" id="live-res-val" style="color:#34d399">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const PLOTS = [
+    { value:'histogram',  label:'Histogram',  emoji:'📊', needsY:false },
+    { value:'bar',        label:'Bar',         emoji:'📈', needsY:true  },
+    { value:'scatter',    label:'Scatter',     emoji:'🔵', needsY:true  },
+    { value:'line',       label:'Line',        emoji:'📉', needsY:true  },
+    { value:'box',        label:'Box',         emoji:'📦', needsY:true  },
+    { value:'violin',     label:'Violin',      emoji:'🎻', needsY:true  },
+    { value:'kde',        label:'KDE',         emoji:'🌊', needsY:false },
+    { value:'count',      label:'Count',       emoji:'🔢', needsY:false },
+    { value:'reg',        label:'Regression',  emoji:'📐', needsY:true  },
+    { value:'heatmap',    label:'Heatmap',     emoji:'🌡️', needsY:false },
+    { value:'strip',      label:'Strip',       emoji:'〰️', needsY:true  },
+    { value:'pairplot',   label:'Pairplot',    emoji:'🔲', needsY:false },
+  ]
+
+  let currentPlot = 'histogram'
+  let allCols = [], numCols = [], catCols = []
+  let modelData = null; // Store intercept and coefficients
+
+  // Build plot grid
+  const grid = document.getElementById('plot-grid')
+  PLOTS.forEach(p => {
+    const b = document.createElement('button')
+    b.className = 'plot-btn' + (p.value === 'histogram' ? ' active' : '')
+    b.id = 'plt-' + p.value
+    b.innerHTML = `<span class="plot-emoji">${p.emoji}</span>${p.label}`
+    b.onclick = () => selectPlot(p.value)
+    grid.appendChild(b)
+  })
+
+  function selectPlot(val) {
+    document.querySelectorAll('.plot-btn').forEach(b => b.classList.remove('active'))
+    document.getElementById('plt-' + val).classList.add('active')
+    currentPlot = val
+    
+    const needsY = PLOTS.find(p => p.value === val)?.needsY
+    document.getElementById('y-group').style.display = needsY ? 'block' : 'none'
+    
+    // Refill columns based on plot type
+    if (allCols.length > 0) {
+      const isNumericOnly = ['reg', 'heatmap', 'pairplot'].includes(val)
+      const xTarget = isNumericOnly ? numCols : allCols
+      const yTarget = isNumericOnly ? numCols : allCols
+      
+      fillSelect('x-col', xTarget)
+      fillSelect('y-col', yTarget)
+      
+      generatePlot()
+    }
+  }
+
+  function setViewMode(mode) {
+    const body = document.getElementById('chart-body');
+    const btnFit = document.getElementById('btn-fit');
+    const btnOrig = document.getElementById('btn-orig');
+    
+    if (mode === 'fit') {
+      body.classList.remove('original-mode');
+      body.classList.add('fit-mode');
+      btnFit.classList.add('active');
+      btnOrig.classList.remove('active');
+    } else {
+      body.classList.remove('fit-mode');
+      body.classList.add('original-mode');
+      btnFit.classList.remove('active');
+      btnOrig.classList.add('active');
+    }
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'))
+    document.querySelector(`.tab[onclick="switchTab('${name}')"]`).classList.add('active')
+    document.getElementById('tab-' + name).classList.add('active')
+  }
+
+  function showSection(name) {
+    document.getElementById('plots-section').style.display = name === 'plots' ? 'grid' : 'none'
+    document.getElementById('predict-section').style.display = name === 'predict' ? 'grid' : 'none'
+    
+    document.getElementById('nav-plots').classList.toggle('active', name === 'plots')
+    document.getElementById('nav-predict').classList.toggle('active', name === 'predict')
+  }
+
+  function fillPredictSelectors() {
+    const targetSel = document.getElementById('pred-target')
+    const grid = document.getElementById('feature-grid')
+    
+    if (!numCols || numCols.length === 0) return;
+    
+    targetSel.innerHTML = numCols.map(c => `<option value="${c}">${c}</option>`).join('')
+    
+    grid.innerHTML = numCols.map(c => `
+      <label class="feature-item">
+        <input type="checkbox" name="feature" value="${c}">
+        ${c}
+      </label>
+    `).join('')
+  }
+
+  async function runPrediction() {
+    const target = document.getElementById('pred-target').value
+    const features = Array.from(document.querySelectorAll('input[name="feature"]:checked')).map(i => i.value)
+    const errBox = document.getElementById('pred-error')
+    const output = document.getElementById('pred-output')
+    const empty = document.getElementById('pred-empty')
+
+    errBox.style.display = 'none'
+    
+    if (!target || features.length === 0) {
+      errBox.textContent = '⚠ Select target and at least one feature.'
+      errBox.style.display = 'block'
+      return
+    }
+
+    try {
+      const res = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target, features })
+      })
+      const data = await res.json()
+
+      if (data.error) {
+        errBox.textContent = '⚠ ' + data.error
+        errBox.style.display = 'block'
+        return
+      }
+
+      empty.style.display = 'none'
+      output.style.display = 'block'
+      
+      modelData = data; // Store for live prediction
+      
+      document.getElementById('res-r2').textContent = data.r2
+      document.getElementById('res-count').textContent = data.features_count
+      document.getElementById('res-eq').textContent = data.equation
+      
+      const coefGrid = document.getElementById('res-coefs')
+      coefGrid.innerHTML = Object.entries(data.coefficients).map(([f, c]) => `
+        <div class="stat-card">
+          <div style="font-size:10px; color:var(--muted)">${f}</div>
+          <div style="font-size:16px; font-weight:700; color:var(--primary)">${c}</div>
+        </div>
+      `).join('')
+
+      // Generate input fields for live prediction
+      const inputFields = document.getElementById('input-fields')
+      inputFields.innerHTML = features.map(f => `
+        <div class="form-group">
+          <label>${f}</label>
+          <input type="number" step="any" class="live-input" data-feature="${f}" value="0" 
+                 style="background:var(--surface); border:1px solid var(--border); color:var(--text); padding:10px; border-radius:6px; width:100%">
+        </div>
+      `).join('')
+      document.getElementById('live-result-box').style.display = 'none'
+
+    } catch(e) {
+      errBox.textContent = '⚠ Request failed.'
+      errBox.style.display = 'block'
+    }
+  }
+
+  function calculateLivePrediction() {
+    if (!modelData) return;
+    
+    let prediction = modelData.intercept;
+    const inputs = document.querySelectorAll('.live-input');
+    
+    inputs.forEach(input => {
+      const feature = input.getAttribute('data-feature');
+      const val = parseFloat(input.value) || 0;
+      const coef = modelData.coefficients[feature] || 0;
+      prediction += (val * coef);
+    });
+    
+    const resBox = document.getElementById('live-result-box');
+    const resVal = document.getElementById('live-res-val');
+    
+    const finalVal = prediction.toFixed(4);
+    resVal.textContent = finalVal;
+    resBox.style.display = 'block';
+    
+    // Warning if outside historical range
+    const range = modelData.target_range;
+    if (prediction > range.max || prediction < range.min) {
+      resBox.style.borderColor = '#fbbf24';
+      resBox.style.background = 'rgba(251,191,36,0.1)';
+      resVal.style.color = '#fbbf24';
+      resVal.innerHTML = `${finalVal} <span style="font-size:12px; font-weight:400; display:block; margin-top:5px;">⚠️ Out of historical range [${range.min}, ${range.max}]</span>`;
+    } else {
+      resBox.style.borderColor = '#34d399';
+      resBox.style.background = 'rgba(52,211,153,0.1)';
+      resVal.style.color = '#34d399';
+    }
+    
+    resBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Drag events
+  function onDragOver(e) { e.preventDefault(); document.getElementById('upload-zone').classList.add('drag'); document.getElementById('upload-icon').textContent='📂' }
+  function onDragLeave(e) { document.getElementById('upload-zone').classList.remove('drag'); document.getElementById('upload-icon').textContent='📁' }
+  function onDrop(e) { e.preventDefault(); onDragLeave(e); uploadFile(e.dataTransfer.files[0]) }
+
+  async function uploadFile(file) {
+    if (!file) return
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      document.getElementById('upload-icon').textContent = '⏳'
+      document.getElementById('upload-title').textContent = 'Loading...'
+      const res = await fetch('/upload', { method: 'POST', body: form })
+      const data = await res.json()
+      if (data.error) { alert('Error: ' + data.error); return }
+
+      allCols = data.columns
+      numCols = data.numeric_columns
+      catCols = data.categorical_columns
+
+      // Show file info
+      document.getElementById('f-name').textContent = file.name
+      document.getElementById('f-meta').textContent = `${data.rows.toLocaleString()} rows · ${data.cols_count} columns · ${(file.size/1024).toFixed(1)} KB`
+      document.getElementById('file-info').style.display = 'flex'
+      document.getElementById('upload-zone').style.display = 'none'
+
+      // Pills
+      document.getElementById('ds-info').style.display = 'block'
+      document.getElementById('pills-area').innerHTML = `
+        <span class="pill pill-blue">🔢 ${data.rows.toLocaleString()} Rows</span>
+        <span class="pill pill-purple">🗂 ${data.cols_count} Cols</span>
+        <span class="pill pill-green">📊 ${numCols.length} Numeric</span>
+      `
+      // Populate selects
+      const fillSelect = (id, cols) => {
+        const sel = document.getElementById(id)
+        sel.innerHTML = cols.map(c => `<option value="${c}">${c}</option>`).join('')
+      }
+      fillSelect('x-col', allCols)
+      fillSelect('y-col', numCols.length ? numCols : allCols)
+      document.getElementById('hue-col').innerHTML = '<option value="">— None —</option>' +
+        allCols.map(c => `<option value="${c}">${c}</option>`).join('')
+
+      document.getElementById('controls').style.display = 'block'
+
+      // Preview table
+      const head = document.querySelector('#preview-table thead')
+      const body = document.querySelector('#preview-table tbody')
+      head.innerHTML = '<tr>' + allCols.map(c => `<th>${c}</th>`).join('') + '</tr>'
+      body.innerHTML = data.preview.map(row =>
+        '<tr>' + allCols.map(c => `<td>${row[c] ?? ''}</td>`).join('') + '</tr>'
+      ).join('')
+      document.getElementById('preview-footer').textContent = `Showing first 5 of ${data.rows.toLocaleString()} rows`
+      document.getElementById('preview-card').style.display = 'block'
+      
+      // Stats grid
+      const sg = document.getElementById('stats-grid')
+      sg.innerHTML = Object.entries(data.stats).map(([col, s]) => `
+        <div class="stat-card">
+          <div class="stat-col-name">${col}</div>
+          ${Object.entries(s).map(([k,v]) => `
+            <div class="stat-row">
+              <span class="stat-key">${k}</span>
+              <span class="stat-val">${typeof v === 'number' ? v.toFixed(3) : v}</span>
+            </div>`).join('')}
+        </div>
+      `).join('')
+
+      // Auto-generate initial plot
+      console.log("File loaded, auto-generating initial plot...");
+      fillPredictSelectors();
+      generatePlot();
+
+    } catch(e) {
+      console.error('Upload error:', e);
+      alert('Upload failed: ' + e.message)
+    } finally {
+      document.getElementById('upload-icon').textContent = '📁'
+      document.getElementById('upload-title').textContent = 'Drag & Drop your CSV'
+    }
+  }
+
+  async function generatePlot() {
+    const btn = document.getElementById('gen-btn')
+    const loader = document.getElementById('loader')
+    const emptyState = document.getElementById('empty-state')
+    const chartImg = document.getElementById('chart-img')
+    const errBox = document.getElementById('error-box')
+
+    errBox.style.display = 'none'
+    btn.disabled = true
+    loader.style.display = 'flex'
+
+    const payload = {
+      plot_type: currentPlot,
+      x_col: document.getElementById('x-col').value,
+      y_col: document.getElementById('y-col').value,
+      hue_col: document.getElementById('hue-col').value,
+    }
+
+    try {
+      console.log("Generating plot with payload:", payload);
+      const res = await fetch('/plot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const data = await res.json()
+
+      if (data.error) {
+        console.error("Server returned error:", data.error);
+        errBox.textContent = '⚠ ' + data.error
+        errBox.style.display = 'block'
+        return
+      }
+
+      console.log("Plot generated successfully!");
+      const src = 'data:image/png;base64,' + data.image
+      
+      // Update UI
+      emptyState.style.display = 'none'
+      chartImg.src = src
+      chartImg.style.display = 'inline-block'
+      
+      const plotLabel = PLOTS.find(p => p.value === currentPlot)?.label || currentPlot
+      document.getElementById('chart-title').textContent = 
+        `${plotLabel}: ${payload.x_col}` + (payload.y_col ? ` vs ${payload.y_col}` : '')
+
+      const dl = document.getElementById('download-btn')
+      dl.href = src
+      dl.style.display = 'inline'
+
+    } catch(e) {
+      console.error("Fetch error:", e);
+      errBox.textContent = '⚠ Request failed: ' + e.message
+      errBox.style.display = 'block'
+    } finally {
+      btn.disabled = false
+      loader.style.display = 'none'
+    }
+  }
+</script>
+</body>
+</html>
