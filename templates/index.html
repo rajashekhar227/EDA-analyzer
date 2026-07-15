@@ -587,18 +587,29 @@
 
 <script>
   const PLOTS = [
-    { value:'histogram',  label:'Histogram',  emoji:'📊', needsY:false },
-    { value:'bar',        label:'Bar',         emoji:'📈', needsY:true  },
-    { value:'scatter',    label:'Scatter',     emoji:'🔵', needsY:true  },
-    { value:'line',       label:'Line',        emoji:'📉', needsY:true  },
-    { value:'box',        label:'Box',         emoji:'📦', needsY:true  },
-    { value:'violin',     label:'Violin',      emoji:'🎻', needsY:true  },
-    { value:'kde',        label:'KDE',         emoji:'🌊', needsY:false },
-    { value:'count',      label:'Count',       emoji:'🔢', needsY:false },
-    { value:'reg',        label:'Regression',  emoji:'📐', needsY:true  },
-    { value:'heatmap',    label:'Heatmap',     emoji:'🌡️', needsY:false },
-    { value:'strip',      label:'Strip',       emoji:'〰️', needsY:true  },
-    { value:'pairplot',   label:'Pairplot',    emoji:'🔲', needsY:false },
+    { value:'histogram',  label:'Histogram',    emoji:'📊', needsY:false },
+    { value:'bar',        label:'Bar',           emoji:'📈', needsY:true  },
+    { value:'barh',       label:'Horiz. Bar',    emoji:'↔️', needsY:true  },
+    { value:'scatter',    label:'Scatter',       emoji:'🔵', needsY:true  },
+    { value:'line',       label:'Line',          emoji:'📉', needsY:true  },
+    { value:'area',       label:'Area',          emoji:'🏔️', needsY:true  },
+    { value:'step',       label:'Step',          emoji:'🪜', needsY:true  },
+    { value:'box',        label:'Box',           emoji:'📦', needsY:true  },
+    { value:'violin',     label:'Violin',        emoji:'🎻', needsY:true  },
+    { value:'strip',      label:'Strip',         emoji:'〰️', needsY:true  },
+    { value:'swarm',      label:'Swarm',         emoji:'🐝', needsY:true  },
+    { value:'point',      label:'Point',         emoji:'🎯', needsY:true  },
+    { value:'kde',        label:'KDE',           emoji:'🌊', needsY:false },
+    { value:'ecdf',       label:'ECDF',          emoji:'📶', needsY:false },
+    { value:'rug',        label:'Rug',           emoji:'🌿', needsY:false },
+    { value:'count',      label:'Count',         emoji:'🔢', needsY:false },
+    { value:'pie',        label:'Pie',           emoji:'🥧', needsY:false },
+    { value:'reg',        label:'Regression',    emoji:'📐', needsY:true  },
+    { value:'residual',   label:'Residual',      emoji:'📏', needsY:true  },
+    { value:'hexbin',     label:'Hexbin',        emoji:'🔷', needsY:true  },
+    { value:'joint',      label:'Joint',         emoji:'🔗', needsY:true  },
+    { value:'heatmap',    label:'Heatmap',       emoji:'🌡️', needsY:false },
+    { value:'pairplot',   label:'Pairplot',      emoji:'🔲', needsY:false },
   ]
 
   let currentPlot = 'histogram'
@@ -626,7 +637,7 @@
     
     // Refill columns based on plot type
     if (allCols.length > 0) {
-      const isNumericOnly = ['reg', 'heatmap', 'pairplot'].includes(val)
+      const isNumericOnly = ['reg', 'residual', 'hexbin', 'joint', 'heatmap', 'pairplot'].includes(val)
       const xTarget = isNumericOnly ? numCols : allCols
       const yTarget = isNumericOnly ? numCols : allCols
       
@@ -910,8 +921,11 @@
       chartImg.style.display = 'inline-block'
       
       const plotLabel = PLOTS.find(p => p.value === currentPlot)?.label || currentPlot
-      document.getElementById('chart-title').textContent = 
-        `${plotLabel}: ${payload.x_col}` + (payload.y_col ? ` vs ${payload.y_col}` : '')
+      let titleHtml = `${plotLabel}: ${payload.x_col}` + (payload.y_col ? ` vs ${payload.y_col}` : '')
+      if (data.downsampled) {
+        titleHtml += ` <span style="font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 12px; background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.2); padding: 2px 8px; border-radius: 12px;">⚡ Downsampled to ${data.sample_size.toLocaleString()} / ${data.original_size.toLocaleString()} rows</span>`
+      }
+      document.getElementById('chart-title').innerHTML = titleHtml
 
       const dl = document.getElementById('download-btn')
       dl.href = src
