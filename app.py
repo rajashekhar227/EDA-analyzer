@@ -44,8 +44,9 @@ def fig_to_b64(fig, fmt='jpeg'):
     # JPEG: 3-5x faster to encode than PNG, 60% smaller payload
     # White background required for JPEG (no transparency support)
     if fmt == 'jpeg':
-        fig.savefig(buf, format='jpeg', quality=88, dpi=72,
-                    facecolor='white', bbox_inches=None)
+        fig.savefig(buf, format='jpeg', dpi=72,
+                    facecolor='white', bbox_inches=None,
+                    pil_kwargs={'quality': 88})
     else:
         fig.savefig(buf, format='png', dpi=85, facecolor=fig.get_facecolor())
     buf.seek(0)
